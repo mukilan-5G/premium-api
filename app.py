@@ -1,5 +1,6 @@
 #!flask/bin/python
 import json
+import scipy.interpolate
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
@@ -23,6 +24,13 @@ with open('rating_factors/unit_factors.json') as json_file:
 	unit_factors = json.load(json_file)
 
 
+# Create a function called "chunks" with two arguments, l and n:
+def chunks(l, n):
+    # For item i in a range that is a length of l,
+    for i in range(0, len(l), n):
+        # Create an index range for l of n items:
+        yield l[i:i+n]
+
 def get_home_age_factor(home_age):
 	home_age = int(home_age)
 	for age_range, factor in home_age_factors.iteritems():
@@ -37,13 +45,11 @@ def get_home_age_factor(home_age):
 
 
 def get_dwelling_coverage_factor(dwelling_coverage):
-	if dwelling_coverage in dwelling_coverage_factors:
-		return dwelling_coverage_factors[dwelling_coverage]
-	else:
-		dwelling_coverage_num = [int(x) for x in dwelling_coverage_factors.keys()]
-		dwelling_coverage_nearest = min(dwelling_coverage_num, 
-				key=lambda k: abs(k-int(dwelling_coverage)))
-		return dwelling_coverage_factors[str(dwelling_coverage_nearest)]
+	y_interp = scipy.interpolate.interp1d(
+		[int(x) for x in dwelling_coverage_factors.keys()], dwelling_coverage_factors.values()) 
+	return round(y_interp(int(dwelling_coverage)), 3)
+
+
 
 @app.route('/api/premium', methods=['POST'])
 def get_quoted_premium():
